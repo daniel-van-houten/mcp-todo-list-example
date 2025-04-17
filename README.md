@@ -22,7 +22,7 @@ Follow these steps to set up and run the To-Do list application.
 
 ### Prerequisites
 
-*   [.NET SDK](https://dotnet.microsoft.com/download) (Version compatible with the project, likely .NET 8 or later based on typical MCP library usage)
+*   [.NET SDK](https://dotnet.microsoft.com/download) (.NET 9.0 SDK)
 *   An [OpenAI API Key](https://platform.openai.com/api-keys)
 
 ### Configuration
@@ -37,7 +37,9 @@ Follow these steps to set up and run the To-Do list application.
     ```
 
 2.  **Client Configuration (`mcp-client-todo-list/appsettings.json`):**
-    *   `ServerExePath`: Set the correct path to the compiled `mcp-server-todo-list` executable. Adjust the relative path based on your build output structure. 
+    *   `WindowsServerExePath` & `LinuxMacServerExePath`: **Crucially**, these must point to the correct executable created by the **publish script** (see "Publishing the Server" section above), located in the `todo-mcp-server-build` directory relative to the client project's *runtime* location (typically `bin/Debug/netX.Y`). The application automatically detects the operating system (Windows, macOS, or Linux) and uses the appropriate path at runtime.
+        *   Ensure the path specified for `WindowsServerExePath` ends with `.exe`.
+        *   Ensure the path specified for `LinuxMacServerExePath` does *not* have an extension.
     ```json
     {
       "Logging": {
@@ -46,8 +48,9 @@ Follow these steps to set up and run the To-Do list application.
         }
       },
       "AppSettings": {
-        "ServerExePath": "../../../../mcp-server-todo-list/bin/Debug/net9.0/mcp-server-todo-list",
-        "OpenAIKey": "YOUR_OPENAI_API_KEY_GOES_HERE_OR_IN_USER_SECRETS" 
+        "WindowsServerExePath": "..\\..\\..\\..\\todo-mcp-server-build\\mcp-server-todo-list.exe", 
+        "LinuxMacServerExePath": "../../../../todo-mcp-server-build/mcp-server-todo-list", 
+        "OpenAIKey": "<Your Key>" // Use .NET User Secrets for production!
       }
     }
     ```
@@ -65,9 +68,20 @@ dotnet build mcp-client-todo-list/mcp-client-todo-list.sln
 dotnet build mcp-server-todo-list/mcp-server-todo-list.sln
 ```
 
+### Publishing the Server (Important!)
+
+Before running the client for the first time, or after making changes to the server code, you may want to publish the server project using the provided scripts to ensure it's up-to-date. This creates a self-contained build in the `todo-mcp-server-build` directory, which the client expects to find.
+
+1.  Navigate to the `mcp-server-todo-list` directory.
+2.  Run the appropriate script for your operating system:
+    *   **Windows:** `.\publish.bat`
+    *   **macOS/Linux:** `sh ./publish.sh` (don't forget to grant execute rights on the script using the chmod command)
+
+This ensures the client uses the latest version of the server from the correct location.
+
 ### Running the Application
 
-1.  **Ensure the Server Path is Correct:** Double-check the `ServerExePath` in `mcp-client-todo-list/appsettings.json` points to the actual location of the built server executable.
+1.  **Ensure Server Paths are Correct:** Verify the `WindowsServerExePath` and `LinuxMacServerExePath` in `mcp-client-todo-list/appsettings.json` point to the actual location of the published server executable relative to the client's runtime directory.
 2.  **Run the Client:** Navigate to the `mcp-client-todo-list` directory (or run from the root using the `-p` flag) and execute:
 
     ```bash
@@ -89,4 +103,4 @@ The client application uses the `Microsoft.Extensions.AI.Chat` library to commun
 
 The client fetches the list of available tools from the server (`ListToolsAsync`) and includes them in the `ChatOptions` sent to the OpenAI model. When the model decides to use a tool (Function Invocation), the client intercepts this, translates it into an MCP `CallTool` request, sends it to the server, receives the result, and sends it back to the model to continue the conversation.
 
-The server application uses the `ModelContextProtocol.Server` library to listen for MCP requests on stdio. It defines handlers for `ListTools` (returning its predefined tool definitions) and `CallTool` (mapping tool names to specific command implementations like `CreateTaskCommand`, `ListTasksCommand`, etc.). 
+The server application uses the `ModelContextProtocol.Server` library to listen for MCP requests on stdio. It defines handlers for `ListTools` (returning its predefined tool definitions) and `CallTool` (mapping tool names to specific command implementations like `CreateTaskCommand`, `ListTasksCommand`, etc.).

@@ -1,24 +1,41 @@
-﻿﻿using Microsoft.Extensions.AI;
+﻿﻿﻿using Microsoft.Extensions.AI;
+﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol.Transport;
 using OpenAI;
 using OpenAI.Models;
+using System.Runtime.InteropServices; // Added for OS detection
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Configuration
     .AddEnvironmentVariables()
     .AddUserSecrets<Program>()
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true); // Add this line to load appsettings.json
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
 // Read configuration values
-var serverExePath = builder.Configuration["AppSettings:ServerExePath"] 
-                    ?? throw new InvalidOperationException("ServerExePath not found in configuration.");
+var windowsPath = builder.Configuration["AppSettings:WindowsServerExePath"];
+var linuxMacPath = builder.Configuration["AppSettings:LinuxMacServerExePath"];
+var openAIKey = builder.Configuration["AppSettings:OpenAIKey"]
+                ?? throw new InvalidOperationException("AppSettings:OpenAIKey not found in configuration.");
 
-var openAIKey = builder.Configuration["AppSettings:OpenAIKey"] 
-                    ?? throw new InvalidOperationException("OpenAIKey not found in configuration.");
+// Determine the correct server path based on the OS
+string serverExePath;
+if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+{
+    serverExePath = windowsPath ?? throw new InvalidOperationException("AppSettings:WindowsServerExePath not found or is null in configuration for Windows OS.");
+}
+else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+{
+    serverExePath = linuxMacPath ?? throw new InvalidOperationException("AppSettings:LinuxMacServerExePath not found or is null in configuration for Linux/macOS.");
+}
+else
+{
+    throw new PlatformNotSupportedException("Operating system not supported for determining server path.");
+}
+
 
 var chatClient =
     new OpenAIClient(openAIKey)
